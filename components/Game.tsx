@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameState, Ball, Paddle, Brick, PowerUp, PowerUpType } from '../types';
 import { audioService } from '../services/audioService';
@@ -294,8 +293,8 @@ const Game: React.FC = () => {
 
   // --- Game Loop ---
   const update = useCallback((time: number) => {
-    // If paused, don't update logic
-    if (gameState !== GameState.PLAYING) return;
+    // Exit if not playing or dying
+    if (gameState !== GameState.PLAYING && gameState !== GameState.DYING) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -303,174 +302,213 @@ const Game: React.FC = () => {
     const deltaTime = time - lastTimeRef.current;
     lastTimeRef.current = time;
 
-    // 1. Move Paddle (Keyboard or Touch)
-    const p = paddleRef.current;
-    const speed = paddleSpeedRef.current;
-    
-    if (keysPressed.current.left || touchControls.current.left) {
-        p.x -= speed;
-        if (p.x < 0) p.x = 0;
-    }
-    if (keysPressed.current.right || touchControls.current.right) {
-        p.x += speed;
-        if (p.x + p.width > CANVAS_WIDTH) p.x = CANVAS_WIDTH - p.width;
-    }
-    
-    // Update sticky ball position if moving paddle
-    ballsRef.current.forEach(ball => {
-         if (ball.dx === 0 && ball.dy === 0) {
-            ball.x = p.x + p.width / 2;
-         }
-    });
-
-    // 2. Move PowerUps
-    for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
-      const pu = powerUpsRef.current[i];
-      pu.y += pu.dy;
-
-      // Collision with Paddle
-      if (
-        pu.x < p.x + p.width &&
-        pu.x + pu.width > p.x &&
-        pu.y < p.y + p.height &&
-        pu.y + pu.height > p.y
-      ) {
-        // Activate PowerUp
-        audioService.playPowerUp();
-        if (pu.type === PowerUpType.EXPAND) p.width = Math.min(p.width + 40, 300);
-        if (pu.type === PowerUpType.SHRINK) p.width = Math.max(p.width - 30, 60);
-        if (pu.type === PowerUpType.EXTRA_LIFE) setLives(prev => prev + 1);
-        if (pu.type === PowerUpType.SPEED_UP) paddleSpeedRef.current = Math.min(paddleSpeedRef.current + 4, 20); // Increase speed, cap at 20
-        if (pu.type === PowerUpType.MULTIBALL) {
-           // Spawn 2 more balls
-           if (ballsRef.current.length > 0) {
-             const base = ballsRef.current.find(b => b.active) || ballsRef.current[0];
-             let baseDy = base.dy;
-             const currentLevelSpeed = getBallSpeed();
-             if (Math.abs(baseDy) < 1) baseDy = -currentLevelSpeed;
-
-             let newDy1 = baseDy; 
-             let newDy2 = baseDy;
-             if (Math.abs(newDy1) < 1) newDy1 = -3;
-             if (Math.abs(newDy2) < 1) newDy2 = -3;
-
-             ballsRef.current.push(
-               { ...base, id: Math.random().toString(), dx: base.dx + 2, dy: newDy1, color: '#fca5a5', trail: [] },
-               { ...base, id: Math.random().toString(), dx: base.dx - 2, dy: newDy2, color: '#93c5fd', trail: [] }
-             );
-           }
-        }
-        powerUpsRef.current.splice(i, 1);
-      } else if (pu.y > CANVAS_HEIGHT) {
-        powerUpsRef.current.splice(i, 1);
-      }
-    }
-
-    // 3. Move Balls & Collisions
-    let activeBalls = 0;
-    const maxSpeed = level <= 4 ? 10 : 15; // Cap max speed based on level
-
-    ballsRef.current.forEach(ball => {
-      if (!ball.active) return;
+    // Only update physics if PLAYING
+    if (gameState === GameState.PLAYING) {
+      // 1. Move Paddle (Keyboard or Touch)
+      const p = paddleRef.current;
+      const speed = paddleSpeedRef.current;
       
-      // Update Trail
-      if (Math.abs(ball.dx) > 0 || Math.abs(ball.dy) > 0) {
-        ball.trail.push({ x: ball.x, y: ball.y });
-        if (ball.trail.length > 15) { // Keep last 15 positions
-            ball.trail.shift();
-        }
+      if (keysPressed.current.left || touchControls.current.left) {
+          p.x -= speed;
+          if (p.x < 0) p.x = 0;
       }
-
-      // Sticky Ball check (start of life)
-      if (ball.dx === 0 && ball.dy === 0) {
-        ball.x = p.x + p.width / 2;
-        ball.y = p.y - ball.radius - 2;
-        activeBalls++;
-        return;
+      if (keysPressed.current.right || touchControls.current.right) {
+          p.x += speed;
+          if (p.x + p.width > CANVAS_WIDTH) p.x = CANVAS_WIDTH - p.width;
       }
-
-      ball.x += ball.dx;
-      ball.y += ball.dy;
-
-      // Wall Collisions
-      if (ball.x + ball.radius > CANVAS_WIDTH) { ball.x = CANVAS_WIDTH - ball.radius; ball.dx *= -1; audioService.playHit('wall'); }
-      if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.dx *= -1; audioService.playHit('wall'); }
-      if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.dy *= -1; audioService.playHit('wall'); }
       
-      if (Math.abs(ball.dy) < 0.2) {
-          ball.dy = ball.dy >= 0 ? 1 : -1;
-      }
-
-      // Bottom Collision (Death of a ball)
-      if (ball.y - ball.radius > CANVAS_HEIGHT) {
-        ball.active = false;
-      } else {
-        activeBalls++;
-      }
-
-      // Paddle Collision
-      if (
-        ball.y + ball.radius > p.y &&
-        ball.y - ball.radius < p.y + p.height &&
-        ball.x + ball.radius > p.x &&
-        ball.x - ball.radius < p.x + p.width
-      ) {
-        let collidePoint = ball.x - (p.x + p.width / 2);
-        collidePoint = collidePoint / (p.width / 2);
-        const angle = collidePoint * (Math.PI / 3); 
-
-        const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
-        const newSpeed = Math.min(speed * 1.02, maxSpeed);
-
-        ball.dx = newSpeed * Math.sin(angle);
-        ball.dy = -newSpeed * Math.cos(angle);
-        ball.y = p.y - ball.radius; 
-        audioService.playHit('paddle');
-      }
-
-      // Brick Collision
-      let hitBrick = false;
-      for (const brick of bricksRef.current) {
-        if (hitBrick) break; 
-        if (brick.health <= 0 && brick.type !== 'UNBREAKABLE') continue;
-        
-        if (
-          ball.x + ball.radius > brick.x &&
-          ball.x - ball.radius < brick.x + brick.width &&
-          ball.y + ball.radius > brick.y &&
-          ball.y - ball.radius < brick.y + brick.height
-        ) {
-          const overlapLeft = (ball.x + ball.radius) - brick.x;
-          const overlapRight = (brick.x + brick.width) - (ball.x - ball.radius);
-          const overlapTop = (ball.y + ball.radius) - brick.y;
-          const overlapBottom = (brick.y + brick.height) - (ball.y - ball.radius);
-
-          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-
-          if (minOverlap === overlapLeft || minOverlap === overlapRight) {
-             ball.dx *= -1;
-          } else {
-             ball.dy *= -1;
+      // Update sticky ball position if moving paddle
+      ballsRef.current.forEach(ball => {
+          if (ball.dx === 0 && ball.dy === 0) {
+              ball.x = p.x + p.width / 2;
           }
+      });
 
-          audioService.playHit('brick');
-          hitBrick = true;
+      // 2. Move PowerUps
+      for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
+        const pu = powerUpsRef.current[i];
+        pu.y += pu.dy;
+
+        // Collision with Paddle
+        if (
+          pu.x < p.x + p.width &&
+          pu.x + pu.width > p.x &&
+          pu.y < p.y + p.height &&
+          pu.y + pu.height > p.y
+        ) {
+          // Activate PowerUp
+          audioService.playPowerUp();
+          if (pu.type === PowerUpType.EXPAND) p.width = Math.min(p.width + 40, 300);
+          if (pu.type === PowerUpType.SHRINK) p.width = Math.max(p.width - 30, 60);
+          if (pu.type === PowerUpType.EXTRA_LIFE) setLives(prev => prev + 1);
+          if (pu.type === PowerUpType.SPEED_UP) paddleSpeedRef.current = Math.min(paddleSpeedRef.current + 4, 20); // Increase speed, cap at 20
+          if (pu.type === PowerUpType.MULTIBALL) {
+            // Spawn 2 more balls
+            if (ballsRef.current.length > 0) {
+              const base = ballsRef.current.find(b => b.active) || ballsRef.current[0];
+              let baseDy = base.dy;
+              const currentLevelSpeed = getBallSpeed();
+              if (Math.abs(baseDy) < 1) baseDy = -currentLevelSpeed;
+
+              let newDy1 = baseDy; 
+              let newDy2 = baseDy;
+              if (Math.abs(newDy1) < 1) newDy1 = -3;
+              if (Math.abs(newDy2) < 1) newDy2 = -3;
+
+              ballsRef.current.push(
+                { ...base, id: Math.random().toString(), dx: base.dx + 2, dy: newDy1, color: '#fca5a5', trail: [] },
+                { ...base, id: Math.random().toString(), dx: base.dx - 2, dy: newDy2, color: '#93c5fd', trail: [] }
+              );
+            }
+          }
+          powerUpsRef.current.splice(i, 1);
+        } else if (pu.y > CANVAS_HEIGHT) {
+          powerUpsRef.current.splice(i, 1);
+        }
+      }
+
+      // 3. Move Balls & Collisions
+      let activeBalls = 0;
+      const maxSpeed = level <= 4 ? 10 : 15; // Cap max speed based on level
+
+      ballsRef.current.forEach(ball => {
+        if (!ball.active) return;
+        
+        // Update Trail
+        if (Math.abs(ball.dx) > 0 || Math.abs(ball.dy) > 0) {
+          ball.trail.push({ x: ball.x, y: ball.y });
+          if (ball.trail.length > 15) { // Keep last 15 positions
+              ball.trail.shift();
+          }
+        }
+
+        // Sticky Ball check (start of life)
+        if (ball.dx === 0 && ball.dy === 0) {
+          ball.x = p.x + p.width / 2;
+          ball.y = p.y - ball.radius - 2;
+          activeBalls++;
+          return;
+        }
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        // Wall Collisions
+        if (ball.x + ball.radius > CANVAS_WIDTH) { ball.x = CANVAS_WIDTH - ball.radius; ball.dx *= -1; audioService.playHit('wall'); }
+        if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.dx *= -1; audioService.playHit('wall'); }
+        if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.dy *= -1; audioService.playHit('wall'); }
+        
+        if (Math.abs(ball.dy) < 0.2) {
+            ball.dy = ball.dy >= 0 ? 1 : -1;
+        }
+
+        // Bottom Collision (Death of a ball)
+        if (ball.y - ball.radius > CANVAS_HEIGHT) {
+          ball.active = false;
+        } else {
+          activeBalls++;
+        }
+
+        // Paddle Collision
+        if (
+          ball.y + ball.radius > p.y &&
+          ball.y - ball.radius < p.y + p.height &&
+          ball.x + ball.radius > p.x &&
+          ball.x - ball.radius < p.x + p.width
+        ) {
+          let collidePoint = ball.x - (p.x + p.width / 2);
+          collidePoint = collidePoint / (p.width / 2);
+          const angle = collidePoint * (Math.PI / 3); 
+
+          const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+          const newSpeed = Math.min(speed * 1.02, maxSpeed);
+
+          ball.dx = newSpeed * Math.sin(angle);
+          ball.dy = -newSpeed * Math.cos(angle);
+          ball.y = p.y - ball.radius; 
+          audioService.playHit('paddle');
+        }
+
+        // Brick Collision
+        let hitBrick = false;
+        for (const brick of bricksRef.current) {
+          if (hitBrick) break; 
+          if (brick.health <= 0 && brick.type !== 'UNBREAKABLE') continue;
           
-          if (brick.type !== 'UNBREAKABLE') {
-            brick.health--;
-            spawnParticles(brick.x + brick.width / 2, brick.y + brick.height / 2, brick.color);
-            if (brick.health <= 0) {
-              setScore(s => s + brick.value);
-              if (Math.random() < 0.15) {
-                spawnPowerUp(brick.x + brick.width/2, brick.y + brick.height/2);
+          if (
+            ball.x + ball.radius > brick.x &&
+            ball.x - ball.radius < brick.x + brick.width &&
+            ball.y + ball.radius > brick.y &&
+            ball.y - ball.radius < brick.y + brick.height
+          ) {
+            const overlapLeft = (ball.x + ball.radius) - brick.x;
+            const overlapRight = (brick.x + brick.width) - (ball.x - ball.radius);
+            const overlapTop = (ball.y + ball.radius) - brick.y;
+            const overlapBottom = (brick.y + brick.height) - (ball.y - ball.radius);
+
+            const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+            if (minOverlap === overlapLeft || minOverlap === overlapRight) {
+              ball.dx *= -1;
+            } else {
+              ball.dy *= -1;
+            }
+
+            audioService.playHit('brick');
+            hitBrick = true;
+            
+            if (brick.type !== 'UNBREAKABLE') {
+              brick.health--;
+              spawnParticles(brick.x + brick.width / 2, brick.y + brick.height / 2, brick.color);
+              if (brick.health <= 0) {
+                setScore(s => s + brick.value);
+                if (Math.random() < 0.15) {
+                  spawnPowerUp(brick.x + brick.width/2, brick.y + brick.height/2);
+                }
               }
             }
           }
         }
+      });
+      
+      const remainingBricks = bricksRef.current.filter(b => b.type !== 'UNBREAKABLE' && b.health > 0).length;
+      if (remainingBricks === 0) {
+         handleLevelComplete();
+         return; 
       }
-    });
 
-    // 4. Update Particles
+      if (activeBalls === 0) {
+        if (lives > 1) {
+          setLives(l => l - 1);
+          resetBall(); // Only reset to 1 ball if we lose life
+          audioService.playLoseLife();
+        } else {
+          // Trigger DYING sequence
+          // We are in PLAYING state, so we can transition to DYING
+          setLives(0);
+          setGameState(GameState.DYING);
+          audioService.playGameOverStinger();
+          
+          // Dramatic Paddle Explosion
+          const px = paddleRef.current.x + paddleRef.current.width/2;
+          const py = paddleRef.current.y + paddleRef.current.height/2;
+          spawnParticles(px, py, '#ec4899');
+          spawnParticles(px, py, '#fbcfe8');
+          spawnParticles(px, py, '#000000');
+          spawnParticles(px + 20, py, '#ec4899');
+          spawnParticles(px - 20, py, '#ec4899');
+          
+          // Transition to Game Over after delay
+          setTimeout(() => {
+              setGameState(GameState.GAME_OVER);
+          }, 2500);
+          
+          return;
+        }
+      }
+    }
+
+    // 4. Update Particles (Run even if DYING)
     for (let i = particlesRef.current.length - 1; i >= 0; i--) {
       const p = particlesRef.current[i];
       p.x += p.dx;
@@ -478,24 +516,6 @@ const Game: React.FC = () => {
       p.life -= 0.05;
       if (p.life <= 0) {
         particlesRef.current.splice(i, 1);
-      }
-    }
-
-    const remainingBricks = bricksRef.current.filter(b => b.type !== 'UNBREAKABLE' && b.health > 0).length;
-    if (remainingBricks === 0) {
-       handleLevelComplete();
-       return; 
-    }
-
-    if (activeBalls === 0) {
-      if (lives > 1) {
-        setLives(l => l - 1);
-        resetBall(); // Only reset to 1 ball if we lose life
-        audioService.playLoseLife();
-      } else {
-        setLives(0);
-        setGameState(GameState.GAME_OVER);
-        audioService.stopBGM();
       }
     }
 
@@ -568,33 +588,35 @@ const Game: React.FC = () => {
     });
     ctx.globalAlpha = 1.0;
 
-    // Draw Paddle
-    const p = paddleRef.current;
-    ctx.fillStyle = '#ec4899'; // Super Pig Pink
-    
-    // Paddle Body
-    ctx.beginPath();
-    ctx.roundRect(p.x, p.y, p.width, p.height, 10);
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#000';
-    ctx.stroke();
+    // Draw Paddle - Hide if DYING (Paddle Exploded)
+    if (gameState !== GameState.DYING) {
+        const p = paddleRef.current;
+        ctx.fillStyle = '#ec4899'; // Super Pig Pink
+        
+        // Paddle Body
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.width, p.height, 10);
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
 
-    // Pig details (Ears/Snout style)
-    ctx.fillStyle = '#fbcfe8'; 
-    ctx.beginPath();
-    ctx.arc(p.x + 15, p.y + 5, 5, 0, Math.PI*2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#fbcfe8'; 
-    ctx.beginPath();
-    ctx.arc(p.x + p.width - 15, p.y + 5, 5, 0, Math.PI*2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#f472b6'; // Snout
-    ctx.beginPath();
-    ctx.ellipse(p.x + p.width/2, p.y + p.height/2, 10, 6, 0, 0, Math.PI*2);
-    ctx.fill();
+        // Pig details (Ears/Snout style)
+        ctx.fillStyle = '#fbcfe8'; 
+        ctx.beginPath();
+        ctx.arc(p.x + 15, p.y + 5, 5, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#fbcfe8'; 
+        ctx.beginPath();
+        ctx.arc(p.x + p.width - 15, p.y + 5, 5, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#f472b6'; // Snout
+        ctx.beginPath();
+        ctx.ellipse(p.x + p.width/2, p.y + p.height/2, 10, 6, 0, 0, Math.PI*2);
+        ctx.fill();
+    }
 
     // Draw Balls & Trails
     ballsRef.current.forEach(ball => {
@@ -642,15 +664,16 @@ const Game: React.FC = () => {
       ctx.fillText(pu.icon, pu.x + 15, pu.y + 15);
     });
 
-  }, []);
+  }, [gameState]);
 
   // Animation Loop Setup
   useEffect(() => {
-    if (gameState === GameState.PLAYING) {
+    // Run update loop if PLAYING or DYING
+    if (gameState === GameState.PLAYING || gameState === GameState.DYING) {
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(update);
     }
-    // Draw loop still runs, but update loop stops when paused
+    // Draw loop still runs
     const interval = setInterval(draw, 1000 / 60);
 
     return () => {
@@ -725,7 +748,26 @@ const Game: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-pink-100 font-sans relative overflow-hidden select-none">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-pink-100 font-sans relative overflow-hidden select-none pb-4">
+      <style>{`
+        @keyframes shake {
+          0% { transform: translate(1px, 1px) rotate(0deg); }
+          10% { transform: translate(-1px, -2px) rotate(-1deg); }
+          20% { transform: translate(-3px, 0px) rotate(1deg); }
+          30% { transform: translate(3px, 2px) rotate(0deg); }
+          40% { transform: translate(1px, -1px) rotate(1deg); }
+          50% { transform: translate(-1px, 2px) rotate(-1deg); }
+          60% { transform: translate(-3px, 1px) rotate(0deg); }
+          70% { transform: translate(3px, 1px) rotate(-1deg); }
+          80% { transform: translate(-1px, -1px) rotate(1deg); }
+          90% { transform: translate(1px, 2px) rotate(0deg); }
+          100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake-anim {
+          animation: shake 0.5s;
+          animation-iteration-count: infinite;
+        }
+      `}</style>
       
       {/* HUD */}
       <div className="w-full max-w-[800px] flex justify-between items-center bg-pink-600 text-white p-4 rounded-t-xl border-4 border-black z-10 shadow-lg gap-2 sm:gap-4">
@@ -745,53 +787,13 @@ const Game: React.FC = () => {
       </div>
 
       {/* Game Canvas Container */}
-      <div className="relative w-full max-w-[800px] border-x-4 border-b-4 border-black bg-white shadow-2xl touch-none">
+      <div className={`relative w-full max-w-[800px] border-4 border-black bg-white shadow-2xl touch-none ${gameState === GameState.DYING ? 'shake-anim' : ''}`}>
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           className="block w-full h-auto"
         />
-
-        {/* Mobile Controls Overlay (Only visible when playing on mobile) */}
-        {gameState === GameState.PLAYING && isMobile && (
-            <div className="absolute inset-0 z-20 pointer-events-none select-none">
-                {/* Left Button */}
-                <div 
-                    className="absolute bottom-4 left-4 w-20 h-20 sm:w-24 sm:h-24 bg-black/20 rounded-full border-4 border-white/50 pointer-events-auto flex items-center justify-center active:bg-black/40 touch-none cursor-pointer"
-                    onTouchStart={(e) => { e.preventDefault(); touchControls.current.left = true; }}
-                    onTouchEnd={(e) => { e.preventDefault(); touchControls.current.left = false; }}
-                    onTouchCancel={(e) => { e.preventDefault(); touchControls.current.left = false; }}
-                    onMouseDown={() => { touchControls.current.left = true; }}
-                    onMouseUp={() => { touchControls.current.left = false; }}
-                    onMouseLeave={() => { touchControls.current.left = false; }}
-                >
-                    <span className="text-3xl sm:text-4xl text-white">⬅️</span>
-                </div>
-                
-                {/* Right Button */}
-                <div 
-                    className="absolute bottom-4 right-4 w-20 h-20 sm:w-24 sm:h-24 bg-black/20 rounded-full border-4 border-white/50 pointer-events-auto flex items-center justify-center active:bg-black/40 touch-none cursor-pointer"
-                    onTouchStart={(e) => { e.preventDefault(); touchControls.current.right = true; }}
-                    onTouchEnd={(e) => { e.preventDefault(); touchControls.current.right = false; }}
-                    onTouchCancel={(e) => { e.preventDefault(); touchControls.current.right = false; }}
-                    onMouseDown={() => { touchControls.current.right = true; }}
-                    onMouseUp={() => { touchControls.current.right = false; }}
-                    onMouseLeave={() => { touchControls.current.right = false; }}
-                >
-                    <span className="text-3xl sm:text-4xl text-white">➡️</span>
-                </div>
-                
-                {/* Launch Button (Center) */}
-                <div 
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2 w-28 h-20 sm:w-32 sm:h-24 bg-red-500/40 rounded-xl border-4 border-white/50 pointer-events-auto flex items-center justify-center active:bg-red-600/60 touch-none cursor-pointer"
-                    onTouchStart={(e) => { e.preventDefault(); launchBall(); }}
-                    onMouseDown={(e) => { e.preventDefault(); launchBall(); }}
-                >
-                    <span className="text-lg sm:text-xl font-bold text-white">LAUNCH</span>
-                </div>
-            </div>
-        )}
 
         {/* Overlays */}
         {gameState === GameState.MENU && (
@@ -837,6 +839,12 @@ const Game: React.FC = () => {
            </div>
         )}
 
+        {gameState === GameState.DYING && (
+           <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-500/20 backdrop-blur-sm">
+                <h1 className="text-8xl sm:text-9xl font-black text-red-600 drop-shadow-[4px_4px_0_#000] animate-pulse scale-110">OH NO!</h1>
+           </div>
+        )}
+
         {gameState === GameState.LOADING_LEVEL && (
            <div className="absolute inset-0 bg-yellow-400 flex flex-col items-center justify-center text-black p-4 sm:p-8 text-center">
              {loading ? (
@@ -860,15 +868,25 @@ const Game: React.FC = () => {
         )}
 
         {gameState === GameState.GAME_OVER && (
-          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center text-white px-4 text-center">
-            <h2 className="text-4xl sm:text-6xl font-bold text-red-500 mb-4" style={{ textShadow: '3px 3px 0 #fff' }}>GAME OVER</h2>
-            <p className="text-2xl sm:text-3xl mb-8">Final Score: {score}</p>
+          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-white px-4 text-center z-50">
+            <h2 className="text-5xl sm:text-7xl font-black text-red-600 mb-2 tracking-widest" style={{ textShadow: '4px 4px 0 #fff' }}>GAME OVER</h2>
+            <p className="text-xl sm:text-2xl mb-8 font-comic text-gray-300">The Wolves Won...</p>
+            
+            <div className="bg-gray-800 p-6 rounded-xl border-4 border-gray-600 mb-8 shadow-2xl">
+                <p className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-2">FINAL SCORE</p>
+                <p className="text-4xl sm:text-6xl font-black text-white">{score}</p>
+            </div>
+
             <button 
               onClick={() => setGameState(GameState.MENU)}
-              className="px-6 py-3 bg-white text-black font-bold text-xl rounded border-4 border-gray-400 hover:bg-gray-200"
+              className="px-8 py-4 bg-white hover:bg-gray-200 text-black font-black text-2xl rounded-full border-4 border-gray-500 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)] transition-transform active:translate-y-1 active:shadow-none mb-12"
             >
-              Try Again
+              TRY AGAIN
             </button>
+            
+            <div className="mt-auto mb-8">
+                <p className="text-lg sm:text-xl font-bold text-gray-500 font-comic">Created by J.Kang & 5914 Production</p>
+            </div>
           </div>
         )}
 
@@ -879,13 +897,56 @@ const Game: React.FC = () => {
             <p className="text-xl sm:text-2xl mb-8">Score: {score}</p>
             <button 
               onClick={() => setGameState(GameState.MENU)}
-              className="px-8 py-4 bg-purple-500 text-white font-bold text-xl sm:text-2xl rounded-full border-4 border-black"
+              className="px-8 py-4 bg-purple-500 text-white font-bold text-xl sm:text-2xl rounded-full border-4 border-black mb-12"
             >
               Play Again
             </button>
+            <div className="mt-auto mb-8">
+                <p className="text-lg sm:text-xl font-bold text-gray-700 font-comic">Created by J.Kang & 5914 Production</p>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Mobile Control Bar - Dedicated Area */}
+      {gameState === GameState.PLAYING && isMobile && (
+        <div className="w-full max-w-[800px] bg-gray-900 border-x-4 border-b-4 border-black p-4 flex justify-between items-center gap-4 touch-none select-none">
+            {/* Left Button */}
+            <button 
+                className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-600 rounded-full border-4 border-gray-400 active:bg-gray-500 flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                onTouchStart={(e) => { e.preventDefault(); touchControls.current.left = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); touchControls.current.left = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); touchControls.current.left = false; }}
+                onMouseDown={(e) => { e.preventDefault(); touchControls.current.left = true; }}
+                onMouseUp={(e) => { e.preventDefault(); touchControls.current.left = false; }}
+                onMouseLeave={(e) => { e.preventDefault(); touchControls.current.left = false; }}
+            >
+                <span className="text-4xl">⬅️</span>
+            </button>
+
+            {/* Launch Button */}
+             <button 
+                className="flex-1 h-16 sm:h-20 bg-red-500 rounded-2xl border-4 border-red-700 active:bg-red-600 flex items-center justify-center shadow-lg transition-transform active:scale-95 mx-2"
+                onTouchStart={(e) => { e.preventDefault(); launchBall(); }}
+                onMouseDown={(e) => { e.preventDefault(); launchBall(); }}
+            >
+                <span className="text-xl sm:text-2xl font-black text-white tracking-widest">LAUNCH</span>
+            </button>
+
+            {/* Right Button */}
+            <button 
+                className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-600 rounded-full border-4 border-gray-400 active:bg-gray-500 flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                onTouchStart={(e) => { e.preventDefault(); touchControls.current.right = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); touchControls.current.right = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); touchControls.current.right = false; }}
+                onMouseDown={(e) => { e.preventDefault(); touchControls.current.right = true; }}
+                onMouseUp={(e) => { e.preventDefault(); touchControls.current.right = false; }}
+                onMouseLeave={(e) => { e.preventDefault(); touchControls.current.right = false; }}
+            >
+                <span className="text-4xl">➡️</span>
+            </button>
+        </div>
+      )}
 
       <div className="mt-4 text-gray-700 font-bold bg-white p-2 rounded border-2 border-black shadow-md text-center w-full max-w-[800px] text-xs sm:text-base">
         Items: 🐷 Multiball | 🧃 Expand | ⚡ Shrink | 🚀 Speed Up | 🌭 1-Up

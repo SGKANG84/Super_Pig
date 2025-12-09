@@ -58,6 +58,7 @@ export enum GameState {
   LOADING_LEVEL = 'LOADING_LEVEL',
   PLAYING = 'PLAYING',
   PAUSED = 'PAUSED',
+  DYING = 'DYING',
   GAME_OVER = 'GAME_OVER',
   VICTORY = 'VICTORY',
 }

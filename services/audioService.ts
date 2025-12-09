@@ -1,4 +1,5 @@
 
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private bgmOscillators: OscillatorNode[] = [];
@@ -206,6 +207,49 @@ class AudioService {
 
     osc.start(now);
     osc.stop(now + 0.5);
+  }
+
+  playGameOverStinger() {
+    if (this.isMuted || !this.ctx) return;
+    this.initCtx();
+    this.stopBGM(); // Stop music immediately
+    
+    const now = this.ctx.currentTime;
+    
+    // Sad descending tones
+    const notes = [392.00, 369.99, 349.23, 329.63]; // G, F#, F, E
+    notes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        
+        const startTime = now + i * 0.4;
+        gain.gain.setValueAtTime(0.2, startTime);
+        gain.gain.linearRampToValueAtTime(0, startTime + 0.4);
+        
+        osc.start(startTime);
+        osc.stop(startTime + 0.4);
+    });
+    
+    // Final low boom/thud
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(100, now + 1.6);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 2.5);
+    
+    gain.gain.setValueAtTime(0.3, now + 1.6);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 2.5);
+    
+    osc.start(now + 1.6);
+    osc.stop(now + 2.5);
   }
 
   // --- BGM Sequencer ---
