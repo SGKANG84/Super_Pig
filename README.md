@@ -1,20 +1,44 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Super Pig: Supah Pinball 🐷🚀🐺
 
-# Run and deploy your AI Studio app
+A funky, comic-book style pinball breakout game featuring **Super Pig** vs the **Evil Wolves**!
 
-This contains everything you need to run your app locally.
+## 🎮 Game Overview
 
-View your app in AI Studio: https://ai.studio/apps/drive/1FGDJAR34t_TSn8Nk2B7Gp3B78G52SSFZ
+Help Super Pig save the world from the Evil Wolf invasion! Use your paddle to bounce the ball, break bricks, and collect Supah Power-ups.
 
-## Run Locally
+### Features
+*   **10 Unique Levels**: From the initial invasion to the Alpha Wolf Boss Battle.
+*   **Generative AI Storytelling**: Each level starts with a unique, funny intro narrated by a comic-book voice (powered by Gemini API).
+*   **Funky Dynamic Soundtrack**: The music intensifies and changes as you progress through the levels.
+*   **Supah Power-Ups**:
+    *   🐷 **Multiball**: Spawns clone balls!
+    *   🚀 **Speed Up**: Makes your paddle faster.
+    *   🧃 **Expand**: Giantsize your paddle.
+    *   ⚡ **Shrink**: A challenge!
+    *   🌭 **Hot Dog**: Extra Life (1-Up).
+*   **Mobile & PC Support**: Touch controls for mobile, Keyboard for PC.
 
-**Prerequisites:**  Node.js
+## 🕹️ Controls
 
+### PC / Desktop
+*   **Left / Right Arrow** (or A / D): Move Paddle
+*   **Spacebar**: Launch Ball
+*   **P / Esc**: Pause Game
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Mobile
+*   **Left / Right On-Screen Buttons**: Move Paddle
+*   **Launch Button**: Launch Ball
+*   **Tap Sides**: You can also select Mobile Mode to show a dedicated gamepad.
+
+## 🛠️ Built With
+*   React
+*   TypeScript
+*   Tailwind CSS
+*   Web Audio API (Procedural Music)
+*   Google Gemini API (Story Generation)
+
+## CREDITS
+**Created by J.Kang & 5914 Production**
+
+---
+*Inspired by the Dog Man graphic novel series style.*
