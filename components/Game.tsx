@@ -798,7 +798,7 @@ const Game: React.FC = () => {
         {/* Overlays */}
         {gameState === GameState.MENU && (
           <div className="absolute inset-0 bg-pink-500/90 flex flex-col items-center justify-center text-white px-4 text-center">
-            <h1 className="text-5xl sm:text-7xl font-black mb-4 drop-shadow-md text-yellow-300 tracking-tighter" style={{ textShadow: '4px 4px 0 #000' }}>SUPER PIG</h1>
+            <h1 className="text-4xl sm:text-7xl font-black mb-4 drop-shadow-md text-yellow-300 tracking-tighter leading-tight" style={{ textShadow: '4px 4px 0 #000' }}>SUPER PIG</h1>
             <h2 className="text-2xl sm:text-4xl font-bold mb-8 text-white drop-shadow-md" style={{ textShadow: '2px 2px 0 #000' }}>vs EVIL WOLVES PINBALL</h2>
             <button 
               onClick={startGame}
@@ -807,7 +807,6 @@ const Game: React.FC = () => {
               PLAY NOW!
             </button>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center">
-                 <p className="text-lg font-medium">Controls:</p>
                  <button 
                     onClick={() => setIsMobile(!isMobile)}
                     className="px-4 py-2 bg-white text-black font-bold rounded border-2 border-black"
@@ -815,7 +814,6 @@ const Game: React.FC = () => {
                     {isMobile ? "📱 Mobile Mode" : "💻 PC Mode"}
                  </button>
             </div>
-            {!isMobile && <p className="mt-2 text-xs sm:text-sm font-medium">Arrow Keys to Move • Spacebar to Launch • P to Pause</p>}
           </div>
         )}
 
@@ -851,59 +849,56 @@ const Game: React.FC = () => {
                 <div className="text-2xl sm:text-4xl font-bold animate-pulse">Summoning Super Pig & Writing Story...</div>
              ) : (
                <>
-                <h2 className="text-4xl sm:text-6xl font-black mb-6 drop-shadow-sm text-white" style={{ textShadow: '3px 3px 0 #000' }}>LEVEL {level}</h2>
-                <div className="bg-white p-4 sm:p-6 rounded-xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-8 max-w-lg transform -rotate-1">
-                  <p className="text-xl sm:text-2xl font-bold italic font-serif leading-relaxed">"{levelIntro}"</p>
+                <h2 className="text-3xl sm:text-6xl font-black mb-2 sm:mb-6 drop-shadow-sm text-white" style={{ textShadow: '2px 2px 0 #000' }}>LEVEL {level}</h2>
+                <div className="bg-white p-3 sm:p-6 rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-4 sm:mb-8 max-w-[90%] sm:max-w-lg transform -rotate-1">
+                  <p className="text-base sm:text-2xl font-bold italic font-serif leading-tight sm:leading-relaxed">"{levelIntro}"</p>
                 </div>
                 <button 
                   onClick={nextLevelStart}
-                  className="px-6 py-3 sm:px-8 sm:py-3 bg-green-500 hover:bg-green-600 text-white font-bold text-xl sm:text-2xl rounded-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  className="px-6 py-2 sm:px-8 sm:py-3 bg-green-500 hover:bg-green-600 text-white font-bold text-lg sm:text-2xl rounded-lg border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] sm:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 >
                   GO!
                 </button>
-                <p className="mt-4 text-xs sm:text-sm font-bold opacity-75">Tip: {isMobile ? "Tap Sides to Move!" : "Use Arrow Keys!"}</p>
                </>
              )}
            </div>
         )}
 
         {gameState === GameState.GAME_OVER && (
-          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-white px-4 text-center z-50">
-            <h2 className="text-5xl sm:text-7xl font-black text-red-600 mb-2 tracking-widest" style={{ textShadow: '4px 4px 0 #fff' }}>GAME OVER</h2>
-            <p className="text-xl sm:text-2xl mb-8 font-comic text-gray-300">The Wolves Won...</p>
-            
-            <div className="bg-gray-800 p-6 rounded-xl border-4 border-gray-600 mb-8 shadow-2xl">
-                <p className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-2">FINAL SCORE</p>
-                <p className="text-4xl sm:text-6xl font-black text-white">{score}</p>
+          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-between py-8 text-white px-4 text-center z-50">
+            <div className="flex flex-col items-center">
+                <h2 className="text-4xl sm:text-7xl font-black text-red-600 mb-2 tracking-widest" style={{ textShadow: '4px 4px 0 #fff' }}>GAME OVER</h2>
+                <p className="text-lg sm:text-2xl mb-4 font-comic text-gray-300">The Wolves Won...</p>
+                
+                <div className="bg-gray-800 p-4 sm:p-6 rounded-xl border-4 border-gray-600 mb-4 shadow-2xl">
+                    <p className="text-xl sm:text-4xl font-bold text-yellow-400 mb-2">FINAL SCORE</p>
+                    <p className="text-3xl sm:text-6xl font-black text-white">{score}</p>
+                </div>
             </div>
 
             <button 
               onClick={() => setGameState(GameState.MENU)}
-              className="px-8 py-4 bg-white hover:bg-gray-200 text-black font-black text-2xl rounded-full border-4 border-gray-500 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)] transition-transform active:translate-y-1 active:shadow-none mb-12"
+              className="px-6 py-3 sm:px-8 sm:py-4 bg-white hover:bg-gray-200 text-black font-black text-xl sm:text-2xl rounded-full border-4 border-gray-500 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)] transition-transform active:translate-y-1 active:shadow-none mb-4"
             >
               TRY AGAIN
             </button>
-            
-            <div className="mt-auto mb-8">
-                <p className="text-lg sm:text-xl font-bold text-gray-500 font-comic">Created by J.Kang & 5914 Production</p>
-            </div>
           </div>
         )}
 
         {gameState === GameState.VICTORY && (
-          <div className="absolute inset-0 bg-yellow-300 flex flex-col items-center justify-center text-black animate-bounce px-4 text-center">
-            <h2 className="text-4xl sm:text-6xl font-black mb-4 text-blue-600" style={{ textShadow: '4px 4px 0 #000' }}>YOU WIN!</h2>
-            <p className="text-2xl sm:text-3xl mb-8 font-bold">Super Pig Saved the Day!</p>
-            <p className="text-xl sm:text-2xl mb-8">Score: {score}</p>
+          <div className="absolute inset-0 bg-yellow-300 flex flex-col items-center justify-between py-8 text-black animate-bounce px-4 text-center">
+            <div className="flex flex-col items-center">
+                <h2 className="text-4xl sm:text-6xl font-black mb-4 text-blue-600" style={{ textShadow: '4px 4px 0 #000' }}>YOU WIN!</h2>
+                <p className="text-xl sm:text-3xl mb-8 font-bold">Super Pig Saved the Day!</p>
+                <p className="text-xl sm:text-2xl mb-8">Score: {score}</p>
+            </div>
+            
             <button 
               onClick={() => setGameState(GameState.MENU)}
-              className="px-8 py-4 bg-purple-500 text-white font-bold text-xl sm:text-2xl rounded-full border-4 border-black mb-12"
+              className="px-8 py-4 bg-purple-500 text-white font-bold text-xl sm:text-2xl rounded-full border-4 border-black mb-8"
             >
               Play Again
             </button>
-            <div className="mt-auto mb-8">
-                <p className="text-lg sm:text-xl font-bold text-gray-700 font-comic">Created by J.Kang & 5914 Production</p>
-            </div>
           </div>
         )}
       </div>
@@ -948,8 +943,28 @@ const Game: React.FC = () => {
         </div>
       )}
 
-      <div className="mt-4 text-gray-700 font-bold bg-white p-2 rounded border-2 border-black shadow-md text-center w-full max-w-[800px] text-xs sm:text-base">
+      {/* Control Instructions (Visible Outside Canvas) */}
+      {!isMobile && (gameState === GameState.MENU || gameState === GameState.PLAYING) && (
+        <div className="mt-2 text-gray-800 font-bold text-sm sm:text-base text-center max-w-[800px]">
+            Arrow Keys to Move • Spacebar to Launch • P to Pause
+        </div>
+      )}
+
+      {/* Items Legend */}
+      <div className="mt-2 text-gray-700 font-bold bg-white p-2 rounded border-2 border-black shadow-md text-center w-full max-w-[800px] text-xs sm:text-base">
         Items: 🐷 Multiball | 🧃 Expand | ⚡ Shrink | 🚀 Speed Up | 🌭 1-Up
+      </div>
+      
+      {/* Tips (Below Items) */}
+      {gameState === GameState.LOADING_LEVEL && (
+         <div className="mt-1 text-center text-xs sm:text-sm font-bold text-gray-600 animate-pulse">
+            Tip: {isMobile ? "Tap Sides to Move!" : "Use Arrow Keys!"}
+         </div>
+      )}
+      
+      {/* Credits Footer */}
+      <div className="mt-2 w-full max-w-[800px] text-center p-2">
+        <p className="text-gray-800 font-black font-comic text-sm sm:text-lg tracking-wider" style={{ textShadow: '1px 1px 0 #fff' }}>Created by J.Kang & 5914 Production</p>
       </div>
     </div>
   );
